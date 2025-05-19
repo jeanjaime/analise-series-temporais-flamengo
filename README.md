@@ -19,12 +19,22 @@ Este repositório traz uma análise detalhada dos acessos mensais à página do 
 
 ```plaintext
 /
-├── dados/
-│   └── Serie_Fla.csv
-├── scripts/
-│   └── analise_final_dos_modelos.Rmd
-├── resultados/
-├── relatorio.pdf
+├── dados
+│   └── serie-flamengo-wiki.csv
+├── resultados
+│   └── gráficos
+│       ├── acf-pacf-1.pdf
+│       ├── unnamed-chunk-3-1.pdf
+│       ├── unnamed-chunk-4-1.pdf
+│       ├── unnamed-chunk-5-1.pdf
+│       ├── unnamed-chunk-7-1.pdf
+│       ├── unnamed-chunk-8-1.pdf
+│       └── analise-series-temporais-flamengo.pdf
+├── scripts
+│   ├── analise-series-temporais-flamengo-1.Rmd
+│   ├── analise-series-temporais-flamengo-2.Rmd
+│   ├── analise-series-temporais-flamengo-3.Rmd
+│   └── tabelas_finais_gerar.R
 ├── .gitignore
 └── README.md
 ````
@@ -124,7 +134,6 @@ X_t = -0,7101 X_{t-1} - 0,2908 X_{t-2} + ε_t - 1,0000 ε_{t-1}
 ## 📚 Referências
 
 * [WikiMedia API](https://wikimedia.org/api/rest_v1/)
-* Hyndman, R.J. & Athanasopoulos, G. *Forecasting: Principles and Practice*.
 * Documentação dos pacotes R utilizados
 
 ---
@@ -135,11 +144,6 @@ X_t = -0,7101 X_{t-1} - 0,2908 X_{t-2} + ε_t - 1,0000 ε_{t-1}
 Graduando em Estatística | Estagiário de Dados
 
 ---
-
-## 💡 Observações
-
-* Os dados são públicos e utilizados apenas para fins acadêmicos.
-* Sugestões e contribuições são bem-vindas!
 
 
 
