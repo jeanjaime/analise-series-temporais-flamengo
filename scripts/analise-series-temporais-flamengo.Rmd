@@ -1,0 +1,476 @@
+---
+title: "Séries Temporais dos Acessos à Página do Flamengo na Wikipédia em Português"
+author: "JJ"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    latex_engine: pdflatex
+    keep_tex: true
+header-includes:
+  - \usepackage{mathpazo}
+  - \usepackage{tabularx}
+  - \usepackage{booktabs}
+  - \renewcommand{\contentsname}{Sumário}
+  - \AtBeginDocument{\fontsize{12}{14}\selectfont}
+  - \usepackage{indentfirst}
+  - \setlength{\parindent}{1.5em}
+  - \usepackage{booktabs}
+  - \usepackage{subcaption}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[T1]{fontenc}
+mainfont: "lmodern"
+---
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(readr)
+library(forecast)
+library(readxl)
+library(lmtest)
+library(xts)
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(ggplot2)
+library(scales)     
+library(tibble)
+library(knitr)
+library(kableExtra)
+library(tseries)
+library(urca)
+library(broom)
+library(gridExtra)
+library(tsoutliers)
+```
+
+\newpage
+
+# Descrição da base de dados
+
+Os dados analisados neste trabalho foram extraídos da base WikiMedia, que registra o número de acessos diários e mensais a páginas da Wikipédia. Para este estudo, foi selecionada a página do **Clube de Regatas do Flamengo**, considerando exclusivamente acessos humanos, não automatizados e provenientes de todas as plataformas (desktop, mobile, etc.).
+
+O período analisado abrange de julho de 2015 (2015-07) a abril de 2025 (2025-04).
+
+```{r include=FALSE}
+arquivo <- "C:\\Users\\JJ\\Documents\\git\\analise-series-temporais-flamengo\\dados\\serie-flamengo-wiki.csv"  # colocar seu repositório
+dados <- read_csv(arquivo)
+dados$Date <- as.Date(paste0(dados$Date, "-01"), format = "%Y-%m-%d")
+names(dados) <- c("Data","Acessos")
+
+tbl <- knitr::kable(
+  head(dados),
+  format    = "latex",
+  booktabs  = TRUE,
+  caption   = "Amostra dos dados de acessos à página do Flamengo na Wikipédia"
+)
+
+cat("\\resizebox{\\textwidth}{!}{%\n", tbl, "}\n")
+
+```
+\begin{table}[ht]
+  \setlength\tabcolsep{12pt}               % espaço interno nas células
+  \renewcommand{\arraystretch}{1.2}        % altura das linhas
+  \centering
+  \caption{Amostra dos dados de acessos à página do Flamengo na Wikipédia}
+  \begin{tabularx}{\textwidth}{@{} l >{\raggedleft\arraybackslash}X @{}}
+    \toprule
+    Data       & Acessos   \\
+    \midrule
+    2015-07-01 &  69\,072  \\
+    2015-08-01 &  69\,949  \\
+    2015-09-01 &  61\,722  \\
+    2015-10-01 &  40\,512  \\
+    2015-11-01 &  45\,647  \\
+    2015-12-01 &  57\,336  \\
+    \bottomrule
+    \multicolumn{2}{@{}l}{\footnotesize Fonte: WikiMedia; dados filtrados para acessos humanos de todas as plataformas.}
+  \end{tabularx}
+\end{table}
+
+# **Pré-processamento**
+
+A análise visual da série indica que há sazonalidade e que há suspeita de não estacionariedade. Fora isso, também podemos observar a presença de um grande outlier.
+
+```{r, fig.width=10, fig.height=5}
+serie <- ts(dados[,2],
+               start = c(2015,7),
+               frequency = 12)
+
+
+ggplot(dados, aes(x = Data, y = Acessos)) +
+  geom_line(size = 1, color = "black") +
+  geom_point(size = 1.5, color = "black", alpha = 0.6) +
+  scale_x_date(
+    date_labels = "%b/%Y",
+    date_breaks = "6 months",
+    expand = expansion(add = c(0.5, 0.5))
+  ) +
+  scale_y_continuous(
+    labels = function(x) format(x, big.mark = ".", decimal.mark = ",", scientific = FALSE),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    title = "Serie Temporal dos Acessos a pagina do Clube de Regatas do Flamengo no WikiPedia",
+    subtitle = "Julho/2015 a Abril/2025",
+    x = NULL,
+    y = NULL,
+    caption = "Fonte: Wikimedia | Acessos humanos em todas as plataformas"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, margin = margin(b = 8)),
+    plot.caption = element_text(size = 9, hjust = 0),
+    axis.title = element_text(face = "bold")
+  )
+
+```
+
+\newpage
+
+Primeiramente, iremos nos preocupar com os outliers e, para isso, será usada a função *tso* para identificá-los e iremos retirar usando a função *na.approx* que faz, automaticamente, interpolação linear nas entradas escolhidas (se houver outliers nas extremidades, utilizaremos o valor mais próximo). 
+
+```{r, fig.width=10, fig.height=5} 
+modelo_tso <- tso(serie, types = c("AO", "LS", "TC"))
+serie_corrigida <- serie
+pos_outliers <- modelo_tso$outliers$ind
+serie_corrigida[pos_outliers] <- NA
+serie_corrigida <- zoo::na.approx(serie_corrigida, rule = 2)
+serie <- serie_corrigida
+
+df_corrigida <- data.frame(
+  Data = seq(from = as.Date("2015-07-01"), by = "month", length.out = length(serie_corrigida)),
+  Acessos = as.numeric(serie_corrigida)
+)
+
+ggplot(df_corrigida, aes(x = Data, y = Acessos)) +
+  geom_line(size = 1, color = "black") +
+  geom_point(size = 1.5, color = "black", alpha = 0.6) +
+  scale_x_date(
+    date_labels = "%b/%Y",
+    date_breaks = "6 months",
+    expand = expansion(add = c(0.5, 0.5))
+  ) +
+  scale_y_continuous(
+    labels = function(x) format(x, big.mark = ".", decimal.mark = ",", scientific = FALSE),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    title = "Serie com Outliers Corrigidos",
+    subtitle = "Julho/2015 a Abril/2025",
+    x = NULL,
+    y = NULL,
+    caption = "Fonte: Wikimedia | Acessos humanos em todas as plataformas"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, margin = margin(b = 8)),
+    plot.caption = element_text(size = 9, hjust = 0),
+    axis.title = element_text(face = "bold")
+  )
+
+```
+
+Agora, já com os outliers retirados, iremos retirar a sazonalidade usando a função *STL* que ajusta modelos de regressões locais para cada janela de um ano, extraindo o padrão médio de repetição. Assim, identificando o componente sazonal, será usada a função *seasadj* para obter a série ajustada sem a componente.
+
+```{r, fig.width=10, fig.height=5} 
+serie_ts <- ts(df_corrigida$Acessos, start = c(2015, 7), frequency = 12)
+stl_fit <- stl(serie_ts, s.window = "periodic")
+serie_dessaz <- forecast::seasadj(stl_fit)
+serie <- serie_dessaz
+
+df_corrigida3 <- data.frame(
+  Data = seq(from = as.Date("2015-07-01"), by = "month", length.out = length(serie_dessaz)),
+  Acessos = as.numeric(serie_dessaz)
+)
+
+ggplot(df_corrigida3, aes(x = Data, y = Acessos)) +
+  geom_line(size = 1, color = "black") +
+  geom_point(size = 1.5, color = "black", alpha = 0.6) +
+  scale_x_date(
+    date_labels = "%b/%Y",
+    date_breaks = "6 months",
+    expand = expansion(add = c(0.5, 0.5))
+  ) +
+  scale_y_continuous(
+    labels = function(x) format(x, big.mark = ".", decimal.mark = ",", scientific = FALSE),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    title = "Serie Dessazonalizada",
+    subtitle = "Julho/2015 a Abril/2025",
+    x = NULL,
+    y = NULL,
+    caption = "Fonte: Wikimedia | Acessos humanos em todas as plataformas"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, margin = margin(b = 8)),
+    plot.caption = element_text(size = 9, hjust = 0),
+    axis.title = element_text(face = "bold")
+  )
+```
+
+
+\newpage
+
+
+Agora, já tendo a série dessazonalizada, iremos conferir a outra suspeita inicial, que a série poderia não ser estacionária.
+
+Para isso, faremos o teste ADF, que confere se a série é estacionária ou não. Nele, a hipótese alternativa (H1) é: "a série é estacionária".
+
+```{r} 
+res_adf <- adf.test(serie)
+
+adf_df <- data.frame(
+  Estatistica = round(unname(res_adf$statistic), 4),
+  p_valor = round(res_adf$p.value, 4),
+  Hipotese_Alternativa = as.character(res_adf$alternative),
+  stringsAsFactors = FALSE
+)
+
+knitr::kable(
+  adf_df,
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Resultado do Teste ADF",
+  label = "tab:adf"
+) %>%
+  kableExtra::kable_styling(latex_options = "hold_position")
+
+```
+O valor do teste foi de -2.2015, com um p-valor de 0.4929. Esse resultado indica que a hipótese nula de não estacionariedade não pode ser rejeitada ao nível de significância de 5%. Ou seja, não há evidências para concluir que a série é estacionária. Assim, a série pode apresentar tendência ou dependência temporal de longo prazo, sendo necessária, então, a diferenciação do modelo.
+
+```{r, fig.width=10, fig.height=3} 
+serie_diff <- diff(serie)
+serie <- serie_diff
+
+df_corrigida2 <- data.frame(
+  Data = seq(from = as.Date("2015-07-01"), by = "month", length.out = length(serie_diff)),
+  Acessos = as.numeric(serie_diff)
+)
+
+ggplot(df_corrigida2, aes(x = Data, y = Acessos)) +
+  geom_line(size = 1, color = "black") +
+  geom_point(size = 1.5, color = "black", alpha = 0.6) +
+  scale_x_date(
+    date_labels = "%b/%Y",
+    date_breaks = "6 months",
+    expand = expansion(add = c(0.5, 0.5))
+  ) +
+  scale_y_continuous(
+    labels = function(x) format(x, big.mark = ".", decimal.mark = ",", scientific = FALSE),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    title = "Serie com a Primeira Diferenciacao",
+    subtitle = "Julho/2015 a Abril/2025",
+    x = NULL,
+    y = NULL,
+    caption = "Fonte: Wikimedia | Acessos humanos em todas as plataformas"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, margin = margin(b = 8)),
+    plot.caption = element_text(size = 9, hjust = 0),
+    axis.title = element_text(face = "bold")
+  )
+
+```
+
+Agora a série está no formato ideal e com as características necessárias para nossas análises, identificações e estimações.
+
+Para avaliar se os modelos conseguem prever bem os dados futuros, a série temporal foi dividida em duas partes: treino e teste. A parte de treino vai de julho de 2015 até abril de 2023, e foi usada para ajustar os modelos. Já o período de teste, de maio de 2023 a abril de 2025, foi separado para verificar se as previsões realmente funcionam em dados que o modelo ainda não viu.
+
+```{r, fig.width=10, fig.height=3}
+options(scipen=999)
+treino <- window(serie, end=c(2023,4))
+teste <- window(serie, start=c(2023,5))
+par(mfrow=c(1,2), mar=c(4,4,2,1))
+ylims <- range(c(treino, teste))
+plot(treino, type="l", lwd=2, col="black", ylim=ylims, xlab="Ano", ylab="Acessos", main="Dados de Treino")
+plot(teste, type="l", lwd=2, col="black", ylim=ylims, xlab="Ano", ylab="", main="Dados de Teste", xaxt="n")
+axis(1, at=unique(floor(time(teste))), labels=unique(floor(time(teste))))
+
+```
+
+\newpage
+
+# **Identificação do Modelo com Base na FAC e FACP**
+
+Para a identificação da estrutura do modelo, será considerada apenas a porção de treino da série, composta pelos dados de julho de 2015 a abril de 2023. A análise se baseia nas funções de autocorrelação (FAC) e autocorrelação parcial (FACP), aplicadas sobre a série já diferenciada. A partir da interpretação desses gráficos, será proposto um modelo inicial, que servirá como base para o resto do trabalho.
+
+```{r acf-pacf, fig.width=10, fig.height=4, dpi=300, echo=FALSE}
+p_acf <- ggAcf(treino, lag.max = 96, ci = 0.95) +
+  labs(
+    title = "FAC – Defasagens Mensais (alfa = 5%)",
+    x = "Lag (meses)",
+    y = "ACF"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold")
+  )
+
+p_pacf <- ggPacf(treino, lag.max = 96, ci = 0.95) +
+  labs(
+    title = "FACP – Defasagens Mensais (alfa = 5%)",
+    x = "Lag (meses)",
+    y = "PACF"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold")
+  )
+
+grid.arrange(p_acf, p_pacf, ncol = 2)
+
+```
+
+
+Em ambos os gráficos se pode observar truncamento no *lag 1*, o que fornece para nós a sugestão de um modelo inicial **ARIMA(1,1,1)**, ou **ARMA(1,1)** considerando que a gente já fez a diferenciação nos dados.
+Portanto, iremos começar a nossa análise com a ideia de que, pela *FAC* e *FACP*, temos um modelo **ARMA(1,1)**, com a seguinte equação:
+
+\begin{equation}
+X_t = \phi_1 X_{t-1} + \varepsilon_t + \theta_1 \varepsilon_{t-1}, \quad \varepsilon_t \sim \text{N}(0, \sigma^2)
+\end{equation}
+
+
+
+# **Sobrefixação e estimação do modelo**
+
+Na última seção, vimos que pela FAC e FACP escolhemos um modelo **ARMA(1,1)**. Nesta parte, iremos avaliar o modelo escolhido, fazer sobrefixação para tentar encontrar o melhor modelo e depois estimar os parâmetro.
+
+Para isso, consideraremos os seguintes modelos candidatos: **ARMA(1,1)**, **ARMA(2,1)**, **ARMA(1,2)** e **ARMA(2,2)**. Em seguida, faremos a comparação entre eles, a fim de escolher o modelo final mais adequado para a série em questão.
+
+\newpage
+
+
+\begin{table}[!ht]
+  \centering
+  \caption{Coeficientes e testes-z dos modelos ARMA}
+  \label{tab:coef_arma}
+  \begin{subtable}[t]{0.45\textwidth}
+    \centering
+    \caption{ARMA(1,1)}
+    \begin{tabular}{lrrrr}
+      \toprule
+      Termo & Estimate & Std.\ Error & z value & Pr(>|z|)\\
+      \midrule
+      ar1 & -0.5457 & 0.0877 & -6.2192 & 0.0000\textsuperscript{***}\\
+      ma1 & -1.0000 & 0.0277 & -36.0502 & 0.0000\textsuperscript{***}\\
+      \bottomrule
+    \end{tabular}
+  \end{subtable}%
+  \hfill
+  \begin{subtable}[t]{0.45\textwidth}
+    \centering
+    \caption{ARMA(2,1)}
+    \begin{tabular}{lrrrr}
+      \toprule
+      Termo & Estimate & Std.\ Error & z value & Pr(>|z|)\\
+      \midrule
+      ar1 & -0.7101 & 0.1012 & -7.0181 & 0.0000\textsuperscript{***}\\
+      ar2 & -0.2908 & 0.1006 & -2.8897 & 0.0038\textsuperscript{**}\\
+      ma1 & -1.0000 & 0.0281 & -35.6408 & 0.0000\textsuperscript{***}\\
+      \bottomrule
+    \end{tabular}
+  \end{subtable}
+
+  \medskip
+
+  \begin{subtable}[t]{0.45\textwidth}
+    \centering
+    \caption{ARMA(1,2)}
+    \begin{tabular}{lrrrr}
+      \toprule
+      Termo & Estimate & Std.\ Error & z value & Pr(>|z|)\\
+      \midrule
+      ar1 & -0.1322 & 0.1056 & -1.2512 & 0.2109\\
+      ma1 & -1.9967 & 0.0472 & -42.3056 & 0.0000\textsuperscript{***}\\
+      ma2 &  0.9996 & 0.0471 & 21.2189 & 0.0000\textsuperscript{***}\\
+      \bottomrule
+    \end{tabular}
+  \end{subtable}%
+  \hfill
+  \begin{subtable}[t]{0.45\textwidth}
+    \centering
+    \caption{ARMA(2,2)}
+    \begin{tabular}{lrrrr}
+      \toprule
+      Termo & Estimate & Std.\ Error & z value & Pr(>|z|)\\
+      \midrule
+      ar1 & -0.1376 & 0.1070 & -1.2856 & 0.1986\\
+      ar2 & -0.0294 & 0.1065 & -0.2762 & 0.7824\\
+      ma1 & -1.9970 & 0.0478 & -41.7859 & 0.0000\textsuperscript{***}\\
+      ma2 &  0.9999 & 0.0477 & 20.9559 & 0.0000\textsuperscript{***}\\
+      \bottomrule
+    \end{tabular}
+  \end{subtable}
+\end{table}
+
+\begin{table}[!h]
+  \centering
+  \caption{Comparacao de AIC e BIC entre os modelos ajustados}
+  \label{tab:criterios_arma}
+  \begin{tabular}{lrrr}
+    \toprule
+    Modelo    &     AIC    &     BIC    \\
+    \midrule
+    ARMA(1,2) & 2060.995 & 2071.038 \\
+    ARMA(2,2) & 2062.918 & 2075.472 \\
+    ARMA(2,1) & 2088.374 & 2098.418 \\
+    ARMA(1,1) & 2094.279 & 2101.811 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+Como podemos ver, em primeiro lugar, pelo teste-z, tanto **ARMA(1,1)** quanto **ARMA(2,1)** apresentam todos os seus parâmetros altamente significativos (p < 0,01). Já no **ARMA(1,2)** o termo *AR(1)* não é significativo (\( p \approx 0{,}21 \)), e no **ARMA(2,2)** os dois coeficientes *AR* também ficam fora de significância, o que indica parâmetros RUINS nesses dois modelos.
+
+Em segundo lugar, os critérios de informação apontam menor AIC/BIC para o **ARMA(1,2)**, seguido de **ARMA(2,2)**, mas essa vantagem de ajuste contrasta com a falta de significância do coeficiente AR. O **ARMA(2,1)**, apesar de ter AIC/BIC maiores que os do modelo **MA(2)**, tem todos os coeficientes significativos e apenas dois termos AR e um MA.
+
+Por fim, optamos pelo **ARMA(2,1)**: ele contém apenas parâmetros que contribuem de fato para o ajuste, mantém resíduos próximos ao ruído branco e apresenta informações úteis.
+
+```{r eval=FALSE, include=FALSE}
+modelo <- Arima(treino, order = c(2, 0, 1), include.mean = FALSE)
+```
+\noindent\textbf{Modelo Escolhido:}
+\[
+\boxed{%
+X_t = -0{,}7101\,X_{t-1} \;-\; 0{,}2908\,X_{t-2}
+\;+\;\varepsilon_t \;-\; 1{,}0000\,\varepsilon_{t-1},
+\qquad
+\varepsilon_t \sim \mathrm{N}\bigl(0,\,478\,526\,867\bigr)
+}
+\]
+
+
