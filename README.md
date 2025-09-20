@@ -1,68 +1,55 @@
-# analise-series-temporais-flamengo
-Análise de séries temporais dos acessos à página do Flamengo na Wikipédia usando R
+-----
 
----
+# Análise de Séries Temporais: Acessos à Página do Flamengo na Wikipédia
 
-# 📊 Análise de Séries Temporais: Acessos à Página do Flamengo na Wikipédia
+## Resumo
 
-Este repositório traz uma análise detalhada dos acessos mensais à página do **Clube de Regatas do Flamengo** na Wikipédia em Português, utilizando técnicas de séries temporais no R. O projeto faz parte das atividades da graduação em Estatística e serve como portfólio de análise de dados aplicados.
+Este repositório contém a análise da série temporal de acessos mensais à página do Clube de Regatas do Flamengo na Wikipédia em português. O estudo utiliza a metodologia Box-Jenkins (ARIMA) para modelar os dados, abrangendo desde o pré-processamento até a seleção do modelo final.
 
-## 📝 Sobre o Projeto
+  - [cite\_start]**Fonte dos Dados:** WikiMedia, com dados de acessos humanos em todas as plataformas[cite: 6, 7].
+  - [cite\_start]**Período de Análise:** Julho de 2015 a Abril de 2025[cite: 8].
 
-- **Objetivo:** Investigar padrões, sazonalidade e previsibilidade dos acessos à página do Flamengo, do ponto de vista estatístico, através de modelos ARMA/ARIMA.  
-- **Período analisado:** Julho/2015 a Abril/2025  
-- **Dados:** Acessos humanos (não-automatizados) em todas as plataformas (desktop, mobile etc.), extraídos da base [WikiMedia](https://wikimedia.org/).
+-----
 
----
+## Metodologia
 
-## 📁 Estrutura do Repositório
+A análise foi conduzida seguindo as etapas padrão para modelagem de séries temporais:
+
+1.  [cite\_start]**Pré-processamento:** A série bruta foi tratada para remover outliers e sazonalidade[cite: 28, 50]. [cite\_start]Um teste de estacionariedade (ADF) foi aplicado, indicando a necessidade de uma diferenciação para estabilizar a série[cite: 65, 70, 72].
+2.  [cite\_start]**Identificação do Modelo:** As Funções de Autocorrelação (FAC) e Autocorrelação Parcial (FACP) foram utilizadas na série de treino (Julho/2015 a Abril/2023) para sugerir a ordem dos modelos ARMA candidatos[cite: 85, 103].
+3.  [cite\_start]**Estimação e Seleção:** Foram ajustados e comparados quatro modelos: ARMA(1,1), ARMA(2,1), ARMA(1,2) e ARMA(2,2)[cite: 140]. [cite\_start]A seleção foi baseada na significância dos coeficientes (teste-z) e nos critérios de informação (AIC e BIC)[cite: 141, 149].
+
+-----
+
+## Modelo Final
+
+[cite\_start]O modelo **ARMA(2,1)** foi selecionado por apresentar todos os coeficientes estatisticamente significativos e um bom ajuste aos dados[cite: 147, 151]. A equação do modelo ajustado para a série diferenciada é:
+
+[cite\_start]$X\_{t} = -0,7101 X\_{t-1} - 0,2908 X\_{t-2} + \\epsilon\_{t} - 1,0000\\epsilon\_{t-1}$ [cite: 153]
+
+-----
+
+## Estrutura do Repositório
 
 ```plaintext
 /
-├── dados
-│   └── serie-flamengo-wiki.csv
-├── resultados
-│   └── gráficos
-│       ├── acf-pacf-1.pdf
-│       ├── unnamed-chunk-3-1.pdf
-│       ├── unnamed-chunk-4-1.pdf
-│       ├── unnamed-chunk-5-1.pdf
-│       ├── unnamed-chunk-7-1.pdf
-│       ├── unnamed-chunk-8-1.pdf
-│       └── analise-series-temporais-flamengo.pdf
-├── scripts
-│   ├── analise-series-temporais-flamengo-1.Rmd
-│   ├── analise-series-temporais-flamengo-2.Rmd
-│   ├── analise-series-temporais-flamengo-3.Rmd
-│   └── tabelas_finais_gerar.R
+├── dados/
+├── resultados/
+├── scripts/
 ├── .gitignore
 └── README.md
-````
+```
 
----
+-----
 
-## 🚀 Como Executar a Análise
+## Como Reproduzir a Análise
 
 **1. Requisitos**
 
-* **R** (versão recomendada: ≥ 4.0)
-* **RStudio** (opcional, mas recomendado)
-* **Pacotes necessários:**
+  - R (versão recomendada: ≥ 4.0)
+  - Pacotes: `tidyverse`, `forecast`, `tseries`, `knitr`, `broom`, `lubridate`, `ggplot2`, `kableExtra`, `xts`, `tsoutliers`, `zoo`, `gridExtra`.
 
-  * `tidyverse`
-  * `forecast`
-  * `tseries`
-  * `knitr`
-  * `broom`
-  * `lubridate`
-  * `ggplot2`
-  * `kableExtra`
-  * `xts`
-  * `tsoutliers`
-  * `zoo`
-  * `gridExtra`
-
-Instale todos de uma vez:
+Instale as dependências com o comando:
 
 ```r
 install.packages(c(
@@ -71,81 +58,15 @@ install.packages(c(
 ))
 ```
 
-**2. Passos para rodar**
+**2. Execução**
 
-1. Clone este repositório:
+1.  Clone este repositório.
+2.  Abra o projeto no RStudio.
+3.  Execute o arquivo `.Rmd` localizado na pasta `scripts/` para gerar o relatório completo.
 
-   ```sh
-   git clone https://github.com/seuusuario/analise-series-temporais-flamengo.git
-   ```
-2. Navegue até a pasta do projeto e abra o RStudio.
-3. Abra o arquivo `scripts/analise_final_dos_modelos.Rmd`.
-4. Verifique se o dataset `dados/Serie_Fla.csv` está no local correto. Ajuste o caminho no `.Rmd` se necessário.
-5. Clique em **Knit** para gerar o relatório em PDF.
+-----
 
----
-
-## 🧩 Etapas da Análise
-
-1. **Descrição dos Dados:**
-
-   * Amostra da base WikiMedia, foco em acessos humanos à página do Flamengo.
-2. **Pré-processamento:**
-
-   * Detecção e tratamento de outliers.
-   * Dessazonalização com STL (`stl` + `seasadj`).
-   * Teste de estacionariedade (ADF) e diferenciação da série.
-3. **Divisão Treino/Teste:**
-
-   * Separação dos dados em conjuntos de treino e teste para avaliação de previsões.
-4. **Identificação de Modelos:**
-
-   * Análise das funções ACF e PACF para sugerir modelos iniciais.
-5. **Ajuste e Comparação de Modelos:**
-
-   * Estimação de modelos ARMA/ARIMA candidatos.
-   * Tabelas de coeficientes e testes-z.
-   * Comparação por critérios de informação (AIC e BIC).
-   * Seleção do modelo final.
-6. **Discussão dos Resultados:**
-
-   * Interpretação dos achados, limitações e sugestões de continuidade.
-
----
-
-## 📊 Exemplo de Resultados
-
-**Amostra dos dados:**
-
-| Data       | Acessos |
-| ---------- | ------- |
-| 2015-07-01 | 69.072  |
-| 2015-08-01 | 69.949  |
-| 2015-09-01 | 61.722  |
-
-**Exemplo de estrutura do modelo ajustado:**
-
-```r
-# Modelo ARMA(2,1) ajustado
-X_t = -0,7101 X_{t-1} - 0,2908 X_{t-2} + ε_t - 1,0000 ε_{t-1}
-```
----
-
-## 📚 Referências
-
-* [WikiMedia API](https://wikimedia.org/api/rest_v1/)
-* Documentação dos pacotes R utilizados
-
----
-
-## 👤 Autor
+## Autor
 
 **Jean Jaime**
 Graduando em Estatística | Estagiário de Dados
-
----
-
-
-
-
-
