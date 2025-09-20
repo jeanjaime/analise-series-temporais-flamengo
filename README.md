@@ -54,4 +54,4 @@ Avaliar a dinâmica temporal dos acessos e ajustar modelos ARMA/ARIMA para previ
 
 ## Autor
 
-Jean Jaime – Graduação em Estatística | Estagiário de Dados
+JJ
