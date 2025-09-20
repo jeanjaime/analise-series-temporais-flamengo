@@ -14,18 +14,20 @@ Avaliar a dinâmica temporal dos acessos e ajustar modelos ARMA/ARIMA para previ
 
 ## Estrutura
 
+```
 /
 ├── dados/
 │   └── serie-flamengo-wiki.csv
 ├── resultados/
-│   ├── gráficos e relatório final (PDFs)
+│   └── gráficos e relatório final (PDFs)
 ├── scripts/
 │   ├── analise-series-temporais-flamengo-1.Rmd
 │   ├── analise-series-temporais-flamengo-2.Rmd
 │   ├── analise-series-temporais-flamengo-3.Rmd
 │   └── tabelas_finais_gerar.R
 └── README.md
-/ 
+```
+
 ## Metodologia
 
 1. **Pré-processamento**
