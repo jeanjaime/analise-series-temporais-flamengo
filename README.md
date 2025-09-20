@@ -1,72 +1,55 @@
------
+# Análise de Séries Temporais – Acessos à Página do Flamengo na Wikipédia
 
-# Análise de Séries Temporais: Acessos à Página do Flamengo na Wikipédia
+Este repositório apresenta um estudo dos acessos mensais à página do **Clube de Regatas do Flamengo** na Wikipédia em português. A análise utiliza métodos de séries temporais em R para investigar padrão, sazonalidade e previsibilidade.
 
-## Resumo
+## Dados
 
-Este repositório contém a análise da série temporal de acessos mensais à página do Clube de Regatas do Flamengo na Wikipédia em português. O estudo utiliza a metodologia Box-Jenkins (ARIMA) para modelar os dados, abrangendo desde o pré-processamento até a seleção do modelo final.
+- **Fonte:** WikiMedia (acessos humanos, todas as plataformas)
+- **Período:** julho/2015 a abril/2025
+- **Arquivo:** `dados/serie-flamengo-wiki.csv`
 
-  - [cite\_start]**Fonte dos Dados:** WikiMedia, com dados de acessos humanos em todas as plataformas[cite: 6, 7].
-  - [cite\_start]**Período de Análise:** Julho de 2015 a Abril de 2025[cite: 8].
+## Objetivos
 
------
+Avaliar a dinâmica temporal dos acessos e ajustar modelos ARMA/ARIMA para previsão.
+
+## Estrutura
+
+/
+├── dados/
+│   └── serie-flamengo-wiki.csv
+├── resultados/
+│   ├── gráficos e relatório final (PDFs)
+├── scripts/
+│   ├── analise-series-temporais-flamengo-1.Rmd
+│   ├── analise-series-temporais-flamengo-2.Rmd
+│   ├── analise-series-temporais-flamengo-3.Rmd
+│   └── tabelas_finais_gerar.R
+└── README.md
 
 ## Metodologia
 
-A análise foi conduzida seguindo as etapas padrão para modelagem de séries temporais:
+1. **Pré-processamento**
+   - Detecção e correção de outliers com `tso` e interpolação linear (`na.approx`).
+   - Dessazonalização com decomposição STL (`seasadj`).
+   - Teste de estacionariedade (ADF) e diferenciação da série.
 
-1.  [cite\_start]**Pré-processamento:** A série bruta foi tratada para remover outliers e sazonalidade[cite: 28, 50]. [cite\_start]Um teste de estacionariedade (ADF) foi aplicado, indicando a necessidade de uma diferenciação para estabilizar a série[cite: 65, 70, 72].
-2.  [cite\_start]**Identificação do Modelo:** As Funções de Autocorrelação (FAC) e Autocorrelação Parcial (FACP) foram utilizadas na série de treino (Julho/2015 a Abril/2023) para sugerir a ordem dos modelos ARMA candidatos[cite: 85, 103].
-3.  [cite\_start]**Estimação e Seleção:** Foram ajustados e comparados quatro modelos: ARMA(1,1), ARMA(2,1), ARMA(1,2) e ARMA(2,2)[cite: 140]. [cite\_start]A seleção foi baseada na significância dos coeficientes (teste-z) e nos critérios de informação (AIC e BIC)[cite: 141, 149].
+2. **Modelagem**
+   - Divisão em treino (2015-07 a 2023-04) e teste (2023-05 a 2025-04).
+   - Identificação inicial por FAC/FACP sugerindo ARIMA(1,1,1).
+   - Avaliação de modelos ARMA(1,1), ARMA(2,1), ARMA(1,2), ARMA(2,2).
+   - Comparação por AIC/BIC e análise de significância dos coeficientes.
 
------
+3. **Modelo Final**
+   - Escolhido ARMA(2,1):
+     X_t = -0,7101 X_{t-1} - 0,2908 X_{t-2} + ε_t - 1,0000 ε_{t-1}
+   - Resíduos com comportamento de ruído branco.
 
-## Modelo Final
+## Requisitos e Execução
 
-[cite\_start]O modelo **ARMA(2,1)** foi selecionado por apresentar todos os coeficientes estatisticamente significativos e um bom ajuste aos dados[cite: 147, 151]. A equação do modelo ajustado para a série diferenciada é:
-
-[cite\_start]$X\_{t} = -0,7101 X\_{t-1} - 0,2908 X\_{t-2} + \\epsilon\_{t} - 1,0000\\epsilon\_{t-1}$ [cite: 153]
-
------
-
-## Estrutura do Repositório
-
-```plaintext
-/
-├── dados/
-├── resultados/
-├── scripts/
-├── .gitignore
-└── README.md
-```
-
------
-
-## Como Reproduzir a Análise
-
-**1. Requisitos**
-
-  - R (versão recomendada: ≥ 4.0)
-  - Pacotes: `tidyverse`, `forecast`, `tseries`, `knitr`, `broom`, `lubridate`, `ggplot2`, `kableExtra`, `xts`, `tsoutliers`, `zoo`, `gridExtra`.
-
-Instale as dependências com o comando:
-
-```r
-install.packages(c(
-  "tidyverse", "forecast", "tseries", "knitr", "broom",
-  "lubridate", "ggplot2", "kableExtra", "xts", "tsoutliers", "zoo", "gridExtra"
-))
-```
-
-**2. Execução**
-
-1.  Clone este repositório.
-2.  Abra o projeto no RStudio.
-3.  Execute o arquivo `.Rmd` localizado na pasta `scripts/` para gerar o relatório completo.
-
------
+- **R ≥ 4.0** e pacotes: `tidyverse`, `forecast`, `tseries`, `knitr`, `broom`,
+  `lubridate`, `ggplot2`, `kableExtra`, `xts`, `tsoutliers`, `zoo`, `gridExtra`.
+- Abra um dos arquivos `.Rmd` no RStudio e gere o relatório com *Knit*.
 
 ## Autor
 
-**Jean Jaime**
-Graduando em Estatística | Estagiário de Dados
+Jean Jaime – Graduação em Estatística | Estagiário de Dados
